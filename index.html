@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cricket Scorer Pro</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div id="setup-modal" class="modal">
+        <div class="modal-content">
+            <h2 style="color:var(--accent)">MATCH SETUP</h2>
+            <div class="input-group">
+                <input type="text" id="t1-name" placeholder="Team 1 Name" value="India">
+                <input type="text" id="t2-name" placeholder="Team 2 Name" value="Australia">
+                <input type="number" id="match-overs" placeholder="Overs" value="5">
+            </div>
+            <div class="toss-grid">
+                <div class="toss-col">
+                    <label>TOSS WINNER</label>
+                    <select id="toss-winner">
+                        <option value="1">Team 1</option>
+                        <option value="2">Team 2</option>
+                    </select>
+                </div>
+                <div class="toss-col">
+                    <label>DECISION</label>
+                    <select id="toss-choice">
+                        <option value="bat">BATTING</option>
+                        <option value="bowl">BOWLING</option>
+                    </select>
+                </div>
+            </div>
+            <button onclick="startMatch()" class="btn-primary">START MATCH</button>
+        </div>
+    </div>
+
+    <div id="entry-modal" class="modal" style="display:none;">
+        <div class="modal-content animation-pop">
+            <h2 id="modal-title">TITLE</h2>
+            <p id="modal-desc" style="white-space: pre-line; margin: 15px 0; color: var(--text-dim);"></p>
+            <input type="text" id="modal-input" placeholder="Enter Name..." autocomplete="off">
+            <button id="modal-confirm-btn" onclick="submitEntry()" class="btn-primary" style="margin-top:15px">CONFIRM</button>
+            <button id="announcement-btn" class="btn-primary" style="display:none; margin-top:20px; background:var(--success)"></button>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <div class="app-container">
+        <header class="scoreboard">
+            <div id="innings-title" class="team-name">READY</div>
+            <h1 id="total-score">0 - 0</h1>
+            <div id="total-overs" class="overs">Overs: 0.0 / 0</div>
+            
+            <div class="secondary-stats">
+                <span id="run-rate">CRR: 0.00</span>
+                <span id="target-display" style="display:none;">Target: 0</span>
+            </div>
+            
+            <div id="chase-tracker" style="display:none; color:var(--accent); font-weight:900; margin-top:15px; font-size:1.1rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
+                Need 0 runs in 0 balls
+            </div>
+
+            <div class="over-balls" id="ball-log"></div>
+        </header>
+
+        <div class="main-layout">
+            <section class="bowler-selection">
+                <div class="bowler-info">
+                    <label>BOWLING</label>
+                    <input type="text" id="current-bowler-name" readonly>
+                </div>
+                <div class="bowler-live">
+                    <span>O - M - R - W</span>
+                    <div id="bowler-live-stats">0.0 - 0 - 0 - 0</div>
+                </div>
+            </section>
+
+            <section class="batting-pair">
+                <div id="bat0" class="player-card on-strike">
+                    <input type="text" id="name-0" class="name-input" readonly>
+                    <div class="p-stats" id="stats-0">0 (0)</div>
+                </div>
+                <div id="bat1" class="player-card">
+                    <input type="text" id="name-1" class="name-input" readonly>
+                    <div class="p-stats" id="stats-1">0 (0)</div>
+                </div>
+            </section>
+
+            <section class="controls">
+                <div class="btn-grid">
+                    <button onclick="addRun(0)">0</button>
+                    <button onclick="addRun(1)">1</button>
+                    <button onclick="addRun(2)">2</button>
+                    <button onclick="addRun(3)">3</button>
+                    <button onclick="addRun(4)" class="boundary">4</button>
+                    <button onclick="addRun(6)" class="boundary">6</button>
+                    <button onclick="addExtra()" class="extra">WD / NB</button>
+                    <button onclick="out()" class="wicket">WICKET</button>
+                </div>
+                <div class="footer-actions">
+                    <button onclick="undo()" class="btn-undo">UNDO</button>
+                    <button onclick="addPenalty()" class="btn-secondary">PENALTY</button>
+                    <button onclick="preparePrint()" class="btn-pdf">PRINT</button>
+                </div>
+            </section>
+        </div>
+
+        <section class="history">
+            <h3>SCORECARD SUMMARY</h3>
+            <div class="table-wrapper">
+                <table>
+                    <tbody id="history-body"></tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
