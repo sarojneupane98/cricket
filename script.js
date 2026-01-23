@@ -21,7 +21,6 @@ let match = {
 window.onload = function() {
     const savedMatch = localStorage.getItem('cricketMatchState');
     if (savedMatch) {
-        // Redefined: START NEW MATCH button remains Red (var(--danger))
         document.getElementById('setup-modal').innerHTML = `
             <div class="modal-content animation-pop">
                 <h2 style="color:var(--accent)">MATCH IN PROGRESS</h2>
@@ -230,22 +229,24 @@ function showFinalSummary() {
         }
     }
 
-    let summaryHTML = `<div class="summary-report">
-        <h2 style="color:var(--success); text-align:center;">${winnerText}</h2>
-        <h4>${inningsOneData.teamName}: ${inningsOneData.score}</h4>
-        ${inningsOneData.batters.map(b => `<div class="summary-line"><span>${b.name}</span><span>${b.runs}(${b.balls})</span></div>`).join('')}
-        <div class="grid-header" style="margin-top:5px;"><span>Bowler</span><span>O-R-W</span></div>
-        ${inningsOneData.bowlers.map(bw => `<div class="summary-line"><span>${bw.displayName}</span><span>${Math.floor(bw.balls/6)}.${bw.balls%6}-${bw.r}-${bw.w}</span></div>`).join('')}
-        <hr style="margin:15px 0; border-top:1px dashed #555;">
-        <h4>${battingFirst}: ${match.runs}/${match.wickets} (${Math.floor(match.balls/6)}.${match.balls%6})</h4>
-        ${[...match.history, ...match.batters].filter(b => b.name).map(b => `<div class="summary-line"><span>${b.name}</span><span>${b.runs}(${b.balls})</span></div>`).join('')}
-        <div class="grid-header" style="margin-top:5px;"><span>Bowler</span><span>O-R-W</span></div>
-        ${Object.values(match.bowlers).map(bw => `<div class="summary-line"><span>${bw.displayName}</span><span>${Math.floor(bw.balls/6)}.${bw.balls%6}-${bw.r}-${bw.w}</span></div>`).join('')}
-    </div>`;
-
-    if (tieMatch) {
-        summaryHTML += `<button onclick="startSuperOver()" class="btn-primary" style="margin-top:15px; background:var(--accent); color:black;">START SUPER OVER</button>`;
-    }
+    let summaryHTML = `
+        <div id="summaryPrintArea" class="summary-report">
+            <h2 style="color:var(--success); text-align:center;">${winnerText}</h2>
+            <h4>${inningsOneData.teamName}: ${inningsOneData.score}</h4>
+            ${inningsOneData.batters.map(b => `<div class="summary-line"><span>${b.name}</span><span>${b.runs}(${b.balls})</span></div>`).join('')}
+            <div class="grid-header" style="margin-top:5px;"><span>Bowler</span><span>O-R-W</span></div>
+            ${inningsOneData.bowlers.map(bw => `<div class="summary-line"><span>${bw.displayName}</span><span>${Math.floor(bw.balls/6)}.${bw.balls%6}-${bw.r}-${bw.w}</span></div>`).join('')}
+            <hr style="margin:15px 0; border-top:1px dashed #555;">
+            <h4>${battingFirst}: ${match.runs}/${match.wickets} (${Math.floor(match.balls/6)}.${match.balls%6})</h4>
+            ${[...match.history, ...match.batters].filter(b => b.name).map(b => `<div class="summary-line"><span>${b.name}</span><span>${b.runs}(${b.balls})</span></div>`).join('')}
+            <div class="grid-header" style="margin-top:5px;"><span>Bowler</span><span>O-R-W</span></div>
+            ${Object.values(match.bowlers).map(bw => `<div class="summary-line"><span>${bw.displayName}</span><span>${Math.floor(bw.balls/6)}.${bw.balls%6}-${bw.r}-${bw.w}</span></div>`).join('')}
+        </div>
+        <div style="display:flex; gap:10px; margin-top:15px;">
+             <button onclick="preparePrint()" class="btn-primary" style="background:#7c3aed; flex:1;">PRINT SUMMARY</button>
+             ${tieMatch ? `<button onclick="startSuperOver()" class="btn-primary" style="background:var(--accent); color:black; flex:1;">SUPER OVER</button>` : ''}
+        </div>
+    `;
 
     openAnnouncement("MATCH FINISHED", summaryHTML, tieMatch ? "CLOSE" : "NEW MATCH", () => {
         if(!tieMatch) { localStorage.clear(); location.reload(); }
@@ -268,12 +269,11 @@ function startSuperOver() {
     setupPlayers();
 }
 
-// --- UI UPDATES ---
+// --- UI ---
 function updateUI() {
     document.getElementById('total-score').innerText = `${match.runs} - ${match.wickets}`;
     document.getElementById('total-overs').innerText = `Overs: ${Math.floor(match.balls/6)}.${match.balls%6} / ${maxOvers}`;
     
-    // Debug: Calculate Run Rate
     const totalOversPlayed = match.balls / 6;
     const crr = totalOversPlayed > 0 ? (match.runs / totalOversPlayed).toFixed(2) : "0.00";
     document.getElementById('run-rate').innerText = `CRR: ${crr}`;
@@ -283,14 +283,12 @@ function updateUI() {
         document.getElementById(`stats-${i}`).innerText = `${b.runs} (${b.balls})`;
         document.getElementById(`bat${i}`).className = `player-card ${i === match.striker ? 'on-strike' : ''}`;
     });
-
     if (match.target > 0) {
         let r = match.target - match.runs;
         let b = (maxOvers * 6) - match.balls;
-        let currentRRR = b > 0 ? ((r / b) * 6).toFixed(2) : "0.00";
-        document.getElementById('chase-tracker').innerText = r > 0 ? `Need ${r} runs in ${b > 0 ? b : 0} balls (RRR: ${currentRRR})` : "Target Reached!";
+        let rrr = b > 0 ? ((r / b) * 6).toFixed(2) : "0.00";
+        document.getElementById('chase-tracker').innerText = r > 0 ? `Need ${r} runs in ${b > 0 ? b : 0} balls (RRR: ${rrr})` : "Target Reached!";
     }
-
     let bwl = match.bowlers[match.currentBowlerKey] || {displayName: "Bowler", balls:0, r:0, w:0};
     document.getElementById('current-bowler-name').value = bwl.displayName;
     document.getElementById('bowler-live-stats').innerText = `${Math.floor(bwl.balls/6)}.${bwl.balls%6} - 0 - ${bwl.r} - ${bwl.w}`;
@@ -310,7 +308,6 @@ function renderTable() {
     document.getElementById('history-body').innerHTML = html;
 }
 
-// --- UTILITIES ---
 function openEntryModal(t, d, c) { resetModal(); document.getElementById('modal-title').innerText = t; document.getElementById('modal-desc').innerHTML = d; document.getElementById('entry-modal').style.display = 'flex'; modalCallback = c; }
 function openAnnouncement(t, d, b, c) { resetModal(); document.getElementById('modal-title').innerText = t; document.getElementById('modal-desc').innerHTML = d; document.getElementById('modal-input').style.display = 'none'; document.getElementById('modal-confirm-btn').style.display = 'none'; const btn = document.getElementById('announcement-btn'); btn.style.display = 'block'; btn.innerText = b; btn.onclick = () => { document.getElementById('entry-modal').style.display = 'none'; if(c) c(); }; document.getElementById('entry-modal').style.display = 'flex'; }
 function resetModal() { document.getElementById('modal-input').style.display = 'block'; document.getElementById('modal-input').value = ""; document.getElementById('modal-confirm-btn').style.display = 'block'; document.getElementById('announcement-btn').style.display = 'none'; }
@@ -321,4 +318,21 @@ function saveState() { matchHistory.push(JSON.parse(JSON.stringify(match))); }
 function undo() { if(matchHistory.length > 0) { match = matchHistory.pop(); saveToDisk(); updateUI(); } }
 function showToast(m, type) { const c = document.getElementById('toast-container'); const t = document.createElement('div'); t.className = `toast ${type}`; t.innerText = m; c.appendChild(t); setTimeout(() => t.remove(), 3000); }
 function addPenalty() { saveState(); match.runs += 5; updateUI(); }
-function preparePrint() { window.print(); }
+
+function preparePrint() {
+    const summary = document.getElementById('summaryPrintArea');
+    if (summary) {
+        const original = document.body.innerHTML;
+        document.body.innerHTML = `
+            <div style="background:white; color:black; padding:30px; font-family:sans-serif;">
+                <h1 style="text-align:center; border-bottom:2px solid #333;">FINAL MATCH SCORECARD</h1>
+                ${summary.innerHTML}
+                <p style="text-align:center; font-size:10px; margin-top:40px;">Cricket Scorer Pro - Final Report</p>
+            </div>`;
+        window.print();
+        document.body.innerHTML = original;
+        location.reload(); 
+    } else {
+        window.print();
+    }
+}
