@@ -81,3 +81,17 @@ th, td { text-align: left; padding: 12px; border-bottom: 1px solid #334155; }
 @media print {
     .controls, .modal, .btn-new-game, .footer-actions { display: none !important; }
 }
+@media print {
+    #final-result-strip {
+        background: #000 !important;
+        color: #fff !important;
+        -webkit-print-color-adjust: exact;
+        text-align: center;
+        margin: 20px 0;
+    }
+    #first-innings-summary {
+        border: 1px solid #ccc;
+        background: #f9f9f9 !important;
+        color: #000 !important;
+    }
+}
