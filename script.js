@@ -3,6 +3,7 @@ let team1, team2, battingFirst, battingSecond, modalCallback = null;
 let matchHistory = []; 
 let maxOvers = 5;
 let isFreeHit = false;
+let firstInningsTotal = "";
 
 let match = {
     runs: 0, wickets: 0, balls: 0, striker: 0, target: 0, currentInnings: 1,
@@ -18,7 +19,6 @@ window.onload = () => {
     const savedData = localStorage.getItem('cricketPro_saveData');
     if (savedData) {
         const parsed = JSON.parse(savedData);
-        // Restore Global Variables
         match = parsed.match;
         team1 = parsed.team1;
         team2 = parsed.team2;
@@ -26,9 +26,16 @@ window.onload = () => {
         battingSecond = parsed.battingSecond;
         maxOvers = parsed.maxOvers;
         matchHistory = parsed.matchHistory || [];
+        firstInningsTotal = parsed.firstInningsTotal || "";
 
-        // UI Adjustments for resumed state
         document.getElementById('setup-modal').style.display = 'none';
+        
+        // Restore 1st Innings Summary if it exists
+        if (firstInningsTotal) {
+            document.getElementById('first-innings-summary').style.display = 'block';
+            document.getElementById('t1-final-score').innerText = firstInningsTotal;
+        }
+
         if (match.currentInnings === 2) {
             document.getElementById('target-display').style.display = 'inline';
             document.getElementById('target-display').innerText = `Target: ${match.target}`;
@@ -40,21 +47,16 @@ window.onload = () => {
 };
 
 function saveState() {
-    // Save to Undo History
     matchHistory.push(JSON.parse(JSON.stringify(match)));
-    
-    // Save to LocalStorage for Safety
     const dataToSave = {
-        match, team1, team2, battingFirst, battingSecond, maxOvers, matchHistory
+        match, team1, team2, battingFirst, battingSecond, maxOvers, matchHistory, firstInningsTotal
     };
     localStorage.setItem('cricketPro_saveData', JSON.stringify(dataToSave));
 }
 
 // --- INITIALIZATION ---
 function startMatch() {
-    // Clear any old data when starting a fresh match
     localStorage.removeItem('cricketPro_saveData');
-    
     team1 = document.getElementById('t1-name').value || "Team 1";
     team2 = document.getElementById('t2-name').value || "Team 2";
     maxOvers = parseInt(document.getElementById('match-overs').value) || 5;
@@ -65,7 +67,7 @@ function startMatch() {
     battingSecond = (battingFirst === team1) ? team2 : team1;
 
     document.getElementById('setup-modal').style.display = 'none';
-    saveState(); // Initial save
+    saveState();
     setupPlayers();
 }
 
@@ -84,7 +86,7 @@ function promptForBowler() {
     openEntryModal("NEW BOWLER", "Enter name of the bowler:", (bowl) => {
         setBowler(bowl || "Unknown Bowler");
         updateUI();
-        saveState(); // Save bowler selection
+        saveState();
     });
 }
 
@@ -167,7 +169,7 @@ function processWicket(type) {
         openEntryModal("NEW BATTER", "Next batter name:", (n) => {
             match.batters[match.striker] = { name: n || "New Batter", runs: 0, balls: 0, fours: 0, sixes: 0 };
             updateUI();
-            saveState(); // Save new batter entry
+            saveState();
         });
     } else { handleInningsEnd(); }
 }
@@ -207,27 +209,40 @@ function checkMatchLogic() {
 
 function handleInningsEnd() {
     const isFirst = match.currentInnings === 1;
-    if (isFirst) match.target = match.runs + 1;
-    const result = isFirst ? `${battingFirst}: ${match.runs}/${match.wickets}\nTarget: ${match.target}` : getFinalResult();
-    const options = isFirst ? ["DOWNLOAD", "START 2ND INNINGS", "RESTART"] : ["DOWNLOAD", "RESTART"];
+    
+    if (isFirst) {
+        match.target = match.runs + 1;
+        firstInningsTotal = `${battingFirst}: ${match.runs}/${match.wickets} (${Math.floor(match.balls/6)}.${match.balls%6} Ov)`;
+        
+        document.getElementById('first-innings-summary').style.display = 'block';
+        document.getElementById('t1-final-score').innerText = firstInningsTotal;
+        
+        const resultText = `INNINGS OVER\n${battingFirst} scored ${match.runs}.\nTarget for ${battingSecond}: ${match.target}`;
+        
+        openEntryModal("INNINGS COMPLETE", resultText, (choice) => {
+            if (choice === "START 2ND INNINGS") startSecondInnings();
+            else if (choice === "DOWNLOAD") downloadScorecard();
+        }, ["DOWNLOAD", "START 2ND INNINGS"]);
+        saveState();
+        
+    } else {
+        const winnerText = getFinalResult();
+        const resultStrip = document.getElementById('final-result-strip');
+        resultStrip.style.display = 'block';
+        resultStrip.innerText = winnerText;
+        document.getElementById('match-status-title').innerText = "FINAL SCORECARD";
 
-    openEntryModal(isFirst ? "INNINGS OVER" : "MATCH OVER", result, (choice) => {
-        if (choice === "DOWNLOAD") {
-            downloadScorecard();
-            setTimeout(() => handleInningsEnd(), 1500); 
-        } else if (choice === "RESTART") { 
-            if(confirm("Are you sure? All data will be deleted.")) {
-                localStorage.removeItem('cricketPro_saveData');
-                location.reload(); 
-            }
-        }
-        else if (choice === "START 2ND INNINGS") { startSecondInnings(); }
-    }, options);
+        openEntryModal("🏆 MATCH FINISHED", winnerText, (choice) => {
+            if (choice === "DOWNLOAD SCORECARD") downloadScorecard();
+            else if (choice === "NEW MATCH") confirmNewGame();
+        }, ["DOWNLOAD SCORECARD", "NEW MATCH"]);
+        saveState();
+    }
 }
 
 function getFinalResult() {
     if (match.runs >= match.target) return `${battingSecond} WON BY ${10 - match.wickets} WICKETS`;
-    if (match.runs === match.target - 1) return "MATCH TIED!";
+    if (match.runs === match.target - 1 && match.balls >= maxOvers * 6) return "MATCH TIED!";
     return `${battingFirst} WON BY ${match.target - 1 - match.runs} RUNS`;
 }
 
@@ -307,12 +322,18 @@ function undo() {
     if (matchHistory.length > 0) { 
         match = matchHistory.pop(); 
         updateUI(); 
-        // Sync the undo with LocalStorage
-        const dataToSave = { match, team1, team2, battingFirst, battingSecond, maxOvers, matchHistory };
+        const dataToSave = { match, team1, team2, battingFirst, battingSecond, maxOvers, matchHistory, firstInningsTotal };
         localStorage.setItem('cricketPro_saveData', JSON.stringify(dataToSave));
     } 
 }
-function preparePrint() { window.print(); }
+function preparePrint() { 
+    const resultStrip = document.getElementById('final-result-strip');
+    if (match.currentInnings === 2 && (match.runs >= match.target || match.balls >= maxOvers * 6 || match.wickets >= 10)) {
+        resultStrip.style.display = 'block';
+        resultStrip.innerText = getFinalResult();
+    }
+    window.print(); 
+}
 
 // --- MODAL SYSTEM ---
 function openEntryModal(t, d, c, options = null) { 
@@ -342,19 +363,14 @@ function showToast(m, type) {
     t.className = `toast ${type}`; t.innerText = m;
     c.appendChild(t); setTimeout(() => t.remove(), 2000);
 }
-/**
- * Triggers a professional styled confirmation modal
- */
+
 function confirmNewGame() {
     const title = "RESET MATCH SESSION";
-    const message = "This action will permanently erase all current match data, including player statistics and history. \n\nAre you sure you want to start a new session?";
+    const message = "This action will permanently erase all current match data. \n\nAre you sure you want to start a new session?";
     
     openEntryModal(title, message, (choice) => {
         if (choice === "CONFIRM RESET") {
-            // Visual feedback
             showToast("Wiping session data...", "danger");
-            
-            // Clear storage and reload
             localStorage.removeItem('cricketPro_saveData');
             setTimeout(() => location.reload(), 800);
         }
