@@ -109,13 +109,22 @@
         </div>
 
         <section class="history" id="printable-scorecard">
-            <h3>SCORECARD SUMMARY</h3>
-            <div class="table-wrapper">
-                <table>
-                    <tbody id="history-body"></tbody>
-                </table>
-            </div>
-        </section>
+    <div id="print-header" style="text-align: center; margin-bottom: 20px;">
+        <h2 id="match-status-title" style="color: var(--accent); margin-bottom: 5px;">MATCH SUMMARY</h2>
+        <div id="final-result-strip" style="font-weight: 900; font-size: 1.2rem; color: #fff; background: var(--blue); padding: 10px; border-radius: 8px; display: none;"></div>
+    </div>
+    
+    <div id="first-innings-summary" style="margin-bottom: 20px; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 10px; display: none;">
+        <h4 style="margin: 0; color: var(--text-dim); font-size: 0.8rem;">FIRST INNINGS</h4>
+        <div id="t1-final-score" style="font-size: 1.5rem; font-weight: 900;"></div>
+    </div>
+
+    <div class="table-wrapper">
+        <table>
+            <tbody id="history-body"></tbody>
+        </table>
+    </div>
+</section>
 
         <div style="margin-top: 30px; padding: 20px; text-align: center;">
             <button onclick="confirmNewGame()" class="btn-new-game">START NEW GAME</button>
