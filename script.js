@@ -1,5 +1,5 @@
 /**
- * CRICKET SCORER PRO - FINAL REFINED EDITION
+ * CRICKET SCORER PRO - FINAL PRINT-READY EDITION
  */
 
 let team1, team2, battingFirst, battingSecond, modalCallback = null;
@@ -148,21 +148,59 @@ function out() {
 }
 
 function addExtra() {
-    const html = `<div style="display:grid; grid-template-columns:1fr; gap:10px;">
-        <button onclick="processExtra('WD')" style="background:#d97706; padding:18px; border-radius:12px;">WIDE</button>
-        <button onclick="processExtra('NB')" style="background:#ef4444; padding:18px; border-radius:12px;">NO BALL</button>
+    const html = `<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <button onclick="promptExtraRuns('WD')" style="background:#d97706; padding:15px; border-radius:10px;">WIDE</button>
+        <button onclick="promptExtraRuns('NB')" style="background:#ef4444; padding:15px; border-radius:10px;">NO BALL</button>
+        <button onclick="promptExtraRuns('LB')" style="background:#3b82f6; padding:15px; border-radius:10px;">LEG BYE</button>
+        <button onclick="promptExtraRuns('B')" style="background:#6366f1; padding:15px; border-radius:10px;">BYES</button>
     </div>`;
-    openEntryModal("EXTRA", html, null);
+    openEntryModal("SELECT EXTRA TYPE", html, null);
     document.getElementById('modal-input').style.display = 'none';
     document.getElementById('modal-confirm-btn').style.display = 'none';
 }
 
-function processExtra(type) {
-    saveState();
-    match.runs += 1;
-    match.bowlers[match.currentBowlerKey].r += 1;
-    if (type === 'NB') { isFreeHit = true; showToast("FREE HIT!", "sixer"); match.recentBalls.push('NB'); }
-    else { match.recentBalls.push('WD'); }
+function promptExtraRuns(type) {
+    let label = (type === 'WD' || type === 'NB') ? "Extra + Runs taken:" : "Runs taken:";
+    const html = `<p style="color:var(--accent); margin-bottom:10px;">${type} - ${label}</p>
+    <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px;">
+        ${[0, 1, 2, 3, 4].map(r => `<button onclick="processDetailedExtra('${type}', ${r})" style="padding:15px; background:#334155; border-radius:8px;">${r}</button>`).join('')}
+    </div>`;
+    document.getElementById('modal-desc').innerHTML = html;
+}
+
+function processDetailedExtra(type, runs) {
+    saveState(); 
+    let bowl = match.bowlers[match.currentBowlerKey];
+    let batter = match.batters[match.striker];
+
+    if (type === 'WD') {
+        let total = 1 + runs;
+        match.runs += total;
+        bowl.r += total;
+        match.recentBalls.push(`${runs > 0 ? runs : ''}WD`);
+        if (runs % 2 !== 0) swapStrike();
+    } 
+    else if (type === 'NB') {
+        let total = 1 + runs;
+        match.runs += total;
+        bowl.r += total;
+        batter.runs += runs;
+        batter.balls += 1;
+        match.recentBalls.push(`${runs > 0 ? runs : ''}NB`);
+        isFreeHit = true;
+        showToast("FREE HIT!", "sixer");
+        if (runs % 2 !== 0) swapStrike();
+    } 
+    else { // LB or B
+        match.runs += runs;
+        match.balls += 1;
+        bowl.balls += 1;
+        batter.balls += 1;
+        match.recentBalls.push(`${runs}${type}`);
+        if (runs % 2 !== 0) swapStrike();
+        isFreeHit = false;
+    }
+
     document.getElementById('entry-modal').style.display = 'none';
     checkMatchLogic();
 }
@@ -172,7 +210,10 @@ function checkMatchLogic() {
     if (match.target > 0 && match.runs >= match.target) {
         updateUI(); setTimeout(handleInningsEnd, 500); return;
     }
-    if (match.balls > 0 && match.balls % 6 === 0) {
+    const lastBall = match.recentBalls[match.recentBalls.length-1]?.toString() || "";
+    const isIllegal = lastBall.includes("WD") || lastBall.includes("NB");
+
+    if (match.balls > 0 && match.balls % 6 === 0 && !isIllegal) {
         match.recentBalls = [];
         updateUI();
         if (match.balls < maxOvers * 6) setTimeout(promptForBowler, 600);
@@ -229,21 +270,28 @@ function showFinalSummary() {
         }
     }
 
+    // Wrap ONLY the text/data in #printableSummary. Buttons are outside.
     let summaryHTML = `
-        <div id="summaryPrintArea" class="summary-report">
+        <div id="printableSummary" class="summary-report" style="color:var(--text); background:var(--card-bg); padding:15px; border-radius:10px;">
             <h2 style="color:var(--success); text-align:center;">${winnerText}</h2>
-            <h4>${inningsOneData.teamName}: ${inningsOneData.score}</h4>
-            ${inningsOneData.batters.map(b => `<div class="summary-line"><span>${b.name}</span><span>${b.runs}(${b.balls})</span></div>`).join('')}
-            <div class="grid-header" style="margin-top:5px;"><span>Bowler</span><span>O-R-W</span></div>
-            ${inningsOneData.bowlers.map(bw => `<div class="summary-line"><span>${bw.displayName}</span><span>${Math.floor(bw.balls/6)}.${bw.balls%6}-${bw.r}-${bw.w}</span></div>`).join('')}
-            <hr style="margin:15px 0; border-top:1px dashed #555;">
-            <h4>${battingFirst}: ${match.runs}/${match.wickets} (${Math.floor(match.balls/6)}.${match.balls%6})</h4>
-            ${[...match.history, ...match.batters].filter(b => b.name).map(b => `<div class="summary-line"><span>${b.name}</span><span>${b.runs}(${b.balls})</span></div>`).join('')}
-            <div class="grid-header" style="margin-top:5px;"><span>Bowler</span><span>O-R-W</span></div>
-            ${Object.values(match.bowlers).map(bw => `<div class="summary-line"><span>${bw.displayName}</span><span>${Math.floor(bw.balls/6)}.${bw.balls%6}-${bw.r}-${bw.w}</span></div>`).join('')}
+            
+            <h4 style="border-bottom:1px solid #444; padding-bottom:5px;">${inningsOneData.teamName}: ${inningsOneData.score}</h4>
+            ${inningsOneData.batters.map(b => `<div class="summary-line" style="display:flex; justify-content:space-between; font-size:14px; margin:4px 0;"><span>${b.name}</span><span>${b.runs}(${b.balls})</span></div>`).join('')}
+            
+            <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:12px; margin-top:10px; opacity:0.7;"><span>Bowler</span><span>O-R-W</span></div>
+            ${inningsOneData.bowlers.map(bw => `<div class="summary-line" style="display:flex; justify-content:space-between; font-size:14px;"><span>${bw.displayName}</span><span>${Math.floor(bw.balls/6)}.${bw.balls%6}-${bw.r}-${bw.w}</span></div>`).join('')}
+            
+            <hr style="margin:15px 0; border:none; border-top:1px dashed #666;">
+            
+            <h4 style="border-bottom:1px solid #444; padding-bottom:5px;">${battingFirst}: ${match.runs}/${match.wickets} (${Math.floor(match.balls/6)}.${match.balls%6})</h4>
+            ${[...match.history, ...match.batters].filter(b => b.name).map(b => `<div class="summary-line" style="display:flex; justify-content:space-between; font-size:14px; margin:4px 0;"><span>${b.name}</span><span>${b.runs}(${b.balls})</span></div>`).join('')}
+            
+            <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:12px; margin-top:10px; opacity:0.7;"><span>Bowler</span><span>O-R-W</span></div>
+            ${Object.values(match.bowlers).map(bw => `<div class="summary-line" style="display:flex; justify-content:space-between; font-size:14px;"><span>${bw.displayName}</span><span>${Math.floor(bw.balls/6)}.${bw.balls%6}-${bw.r}-${bw.w}</span></div>`).join('')}
         </div>
-        <div style="display:flex; gap:10px; margin-top:15px;">
-             <button onclick="preparePrint()" class="btn-primary" style="background:#7c3aed; flex:1;">PRINT SUMMARY</button>
+        
+        <div class="no-print" style="display:flex; gap:10px; margin-top:15px;">
+             <button onclick="preparePrint()" class="btn-primary" style="background:#7c3aed; flex:1;">PRINT SCORECARD</button>
              ${tieMatch ? `<button onclick="startSuperOver()" class="btn-primary" style="background:var(--accent); color:black; flex:1;">SUPER OVER</button>` : ''}
         </div>
     `;
@@ -251,6 +299,35 @@ function showFinalSummary() {
     openAnnouncement("MATCH FINISHED", summaryHTML, tieMatch ? "CLOSE" : "NEW MATCH", () => {
         if(!tieMatch) { localStorage.clear(); location.reload(); }
     });
+}
+
+function preparePrint() {
+    const printArea = document.getElementById('printableSummary');
+    if (!printArea) return;
+
+    // Create a hidden iframe or new window for clean printing
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html>
+            <head>
+                <title>Match Scorecard</title>
+                <style>
+                    body { font-family: sans-serif; padding: 40px; color: #000; background: #fff; }
+                    .summary-report { width: 100%; max-width: 600px; margin: auto; }
+                    h2 { color: #059669; text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; }
+                    h4 { margin-top: 20px; border-bottom: 1px solid #ccc; }
+                    .summary-line { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eee; }
+                    .footer { text-align: center; font-size: 10px; margin-top: 50px; color: #666; }
+                </style>
+            </head>
+            <body>
+                ${printArea.innerHTML}
+                <div class="footer">Generated by Cricket Scorer Pro</div>
+            </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
 }
 
 function startSuperOver() {
@@ -269,7 +346,7 @@ function startSuperOver() {
     setupPlayers();
 }
 
-// --- UI ---
+// --- UI UPDATES ---
 function updateUI() {
     document.getElementById('total-score').innerText = `${match.runs} - ${match.wickets}`;
     document.getElementById('total-overs').innerText = `Overs: ${Math.floor(match.balls/6)}.${match.balls%6} / ${maxOvers}`;
@@ -308,31 +385,28 @@ function renderTable() {
     document.getElementById('history-body').innerHTML = html;
 }
 
+// --- UTILITIES ---
 function openEntryModal(t, d, c) { resetModal(); document.getElementById('modal-title').innerText = t; document.getElementById('modal-desc').innerHTML = d; document.getElementById('entry-modal').style.display = 'flex'; modalCallback = c; }
 function openAnnouncement(t, d, b, c) { resetModal(); document.getElementById('modal-title').innerText = t; document.getElementById('modal-desc').innerHTML = d; document.getElementById('modal-input').style.display = 'none'; document.getElementById('modal-confirm-btn').style.display = 'none'; const btn = document.getElementById('announcement-btn'); btn.style.display = 'block'; btn.innerText = b; btn.onclick = () => { document.getElementById('entry-modal').style.display = 'none'; if(c) c(); }; document.getElementById('entry-modal').style.display = 'flex'; }
 function resetModal() { document.getElementById('modal-input').style.display = 'block'; document.getElementById('modal-input').value = ""; document.getElementById('modal-confirm-btn').style.display = 'block'; document.getElementById('announcement-btn').style.display = 'none'; }
 function submitEntry() { const v = document.getElementById('modal-input').value.trim(); if (!v) return; document.getElementById('entry-modal').style.display = 'none'; modalCallback(v); }
 function swapStrike() { match.striker = match.striker === 0 ? 1 : 0; }
 function setBowler(n) { let k = n.toLowerCase().replace(/\s/g, ''); if (!match.bowlers[k]) match.bowlers[k] = { displayName: n, balls: 0, r: 0, w: 0 }; match.currentBowlerKey = k; }
-function saveState() { matchHistory.push(JSON.parse(JSON.stringify(match))); }
-function undo() { if(matchHistory.length > 0) { match = matchHistory.pop(); saveToDisk(); updateUI(); } }
+
+function saveState() { 
+    matchHistory.push(JSON.parse(JSON.stringify(match))); 
+    if (matchHistory.length > 50) matchHistory.shift();
+}
+
+function undo() { 
+    if(matchHistory.length > 0) { 
+        match = matchHistory.pop(); 
+        isFreeHit = match.recentBalls[match.recentBalls.length-1]?.toString().includes('NB') ? true : false;
+        saveToDisk(); 
+        updateUI(); 
+        showToast("Undo Successful", "warning");
+    } else { showToast("Nothing to Undo", "warning"); }
+}
+
 function showToast(m, type) { const c = document.getElementById('toast-container'); const t = document.createElement('div'); t.className = `toast ${type}`; t.innerText = m; c.appendChild(t); setTimeout(() => t.remove(), 3000); }
 function addPenalty() { saveState(); match.runs += 5; updateUI(); }
-
-function preparePrint() {
-    const summary = document.getElementById('summaryPrintArea');
-    if (summary) {
-        const original = document.body.innerHTML;
-        document.body.innerHTML = `
-            <div style="background:white; color:black; padding:30px; font-family:sans-serif;">
-                <h1 style="text-align:center; border-bottom:2px solid #333;">FINAL MATCH SCORECARD</h1>
-                ${summary.innerHTML}
-                <p style="text-align:center; font-size:10px; margin-top:40px;">Cricket Scorer Pro - Final Report</p>
-            </div>`;
-        window.print();
-        document.body.innerHTML = original;
-        location.reload(); 
-    } else {
-        window.print();
-    }
-}
